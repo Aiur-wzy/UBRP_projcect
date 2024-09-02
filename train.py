@@ -58,8 +58,8 @@ class TrainingArguments(transformers.TrainingArguments):
     optim: str = field(default="adamw_torch")
     model_max_length: int = field(default=512, metadata={"help": "Maximum sequence length."})
     gradient_accumulation_steps: int = field(default=50)
-    per_device_train_batch_size: int = field(default=128)
-    per_device_eval_batch_size: int = field(default=256)
+    per_device_train_batch_size: int = field(default=50)
+    per_device_eval_batch_size: int = field(default=100)
     num_train_epochs: int = field(default=20)
     fp16: bool = field(default=False)
     logging_steps: int = field(default=100)
@@ -68,16 +68,16 @@ class TrainingArguments(transformers.TrainingArguments):
     eval_strategy: str = field(default="steps")
     warmup_steps: int = field(default=50)
     weight_decay: float = field(default=0.01)
-    learning_rate: float = field(default=1e-4)
+    learning_rate: float = field(default=0.00003)
     save_total_limit: int = field(default=3)
     load_best_model_at_end: bool = field(default=True)
     output_dir: str = field(default="/home/zhiyuan/My_DNAbert/result/model")
-    find_unused_parameters: bool = field(default=False)
+    find_unused_parameters: bool = field(default=True)
     checkpointing: bool = field(default=False)
     dataloader_pin_memory: bool = field(default=False)
     eval_and_save_results: bool = field(default=True)
     save_model: bool = field(default=True)
-    seed: int = field(default=2010100727)
+    seed: int = field(default=27)
 
 
 def safe_save_model_for_hf_trainer(trainer: transformers.Trainer, output_dir: str):
@@ -186,6 +186,11 @@ class SupervisedDataset(Dataset):
 
     def __getitem__(self, i) -> Dict[str, torch.Tensor]:
         return dict(input_ids=self.input_ids[i], labels=self.labels[i])
+        '''newp={}
+        newp["input_ids"]=self.input_ids[i]
+        newp["labels"]=self.labels[i]
+        return newp'''
+
 
 
 @dataclass
@@ -278,9 +283,20 @@ def train():
     data_collator = DataCollatorForSupervisedDataset(tokenizer=tokenizer)
 
     # load model
-    Config = BertConfig.from_pretrained(model_args.model_name_or_path)
-    model = transformers.AutoModelForSequenceClassification.from_pretrained(model_args.model_name_or_path, config=Config)
+    #Config = BertConfig.from_pretrained(model_args.model_name_or_path)
+
+    #model = transformers.AutoModelForSequenceClassification.from_pretrained(model_args.model_name_or_path, config=Config)
+    #load pre-trained DNABERT2 with layers but not to load weight
+
     #model = transformers.AutoModelForSequenceClassification.from_config(Config)
+    #load pre-trained DNABERT2 only with configuration
+
+    config = BertConfig.from_pretrained("zhihan1996/DNABERT-2-117M", num_labels=2, trust_remote_code=True)
+    model = transformers.AutoModelForSequenceClassification.from_pretrained(
+        "zhihan1996/DNABERT-2-117M",
+        config=config,
+        trust_remote_code=True
+    )
 
     if model_args.use_lora:
         lora_config = LoraConfig(
